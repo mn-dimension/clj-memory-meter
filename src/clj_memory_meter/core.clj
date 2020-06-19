@@ -60,12 +60,18 @@
 
 (def ^:private tools-jar-classloader
   (delay
-   (let [tools-jar (tools-jar-url)
-         [loader dynamic?] (get-classloader)]
-     (if dynamic?
-       (.addURL loader tools-jar)
-       (add-url-to-classloader-reflective loader tools-jar))
-     loader)))
+    (let [tools-jar (tools-jar-url)
+          loader    (cl/the-top-level-classloader)
+          dynamic?  (boolean (#{"clojure.lang.DynamicClassLoader" "boot.AddableClassLoader"} (.getName (class loader))))]
+      (println [loader dynamic?])
+      (if dynamic?
+        (try
+          (.addURL loader tools-jar)
+          (catch Exception e
+            (log/error "dynamic? loading threw exception: " (.getMessage e))
+            (cl/add-url-to-classpath! tools-jar)))
+        (cl/add-url-to-classpath! tools-jar))
+      loader)))
 
 (defn get-virtualmachine-class []
   ;; In JDK9+, the class is already present, no extra steps required.
